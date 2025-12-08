@@ -1,8 +1,8 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { 
-  Github, Gamepad2, Cpu, Monitor, Mouse, ExternalLink, Music, 
-  Youtube, Play, Pause, Activity, Zap, Copy, Check, Disc, 
-  Grid, Move
+  Github, Gamepad2, ExternalLink, 
+  Youtube, Play, Pause, Zap, Copy, Check, 
+  Disc, Grid, Move
 } from 'lucide-react';
 
 // --- STYLES & ANIMATIONS ---
@@ -72,7 +72,9 @@ const GLOBAL_STYLES = `
 
 // --- CONFIG ---
 const CONFIG = {
+  // Direct Discord CDN link provided
   musicUrl: "https://cdn.discordapp.com/attachments/1386051430049124525/1447625523609210995/l8IahfK.mp3?ex=69384dd4&is=6936fc54&hm=b23729eda85603b83f10a8b03441c1e6142454ad6676a970f4006761b80aa524&",
+  
   discord: "void_only.",
   youtube: "https://youtube.com/@v.0.1.d_?si=mrKir7drsJyHuvRy",
   github: "https://github.com/void-only"
@@ -171,6 +173,7 @@ const ConstellationCat = () => {
 
   useEffect(() => {
     const handleMouseMove = (e: MouseEvent) => {
+      // Calculate eye movement limited to a small radius
       const maxMove = 5;
       const x = (e.clientX - window.innerWidth / 2) / 30;
       const y = (e.clientY - window.innerHeight / 2) / 30;
@@ -308,19 +311,19 @@ const FluxMatrix = () => {
 const MusicPlayer = () => {
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const [isPlaying, setIsPlaying] = useState(false);
-  const [volume, setVolume] = useState(0.4);
+  const [volume] = useState(0.4); // setVolume removed to fix TS error
 
   useEffect(() => {
     audioRef.current = new Audio(CONFIG.musicUrl);
     audioRef.current.loop = true;
     audioRef.current.volume = volume;
     return () => { audioRef.current?.pause(); };
-  }, []);
+  }, []); // volume dependency removed as it's static
 
   const toggle = () => {
     if(!audioRef.current) return;
     if(isPlaying) audioRef.current.pause();
-    else audioRef.current.play().catch(e => console.log("Autoplay blocked"));
+    else audioRef.current.play().catch(() => console.log("Autoplay blocked")); // 'e' removed to fix TS error
     setIsPlaying(!isPlaying);
   };
 
