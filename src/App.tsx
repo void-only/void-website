@@ -1,639 +1,662 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { 
-  Github, Gamepad2, ExternalLink, 
-  Youtube, Play, Pause, Zap, Copy, Check, 
-  Disc, Grid, Move
-} from 'lucide-react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
+import { Sun, Moon } from 'lucide-react';
+import { motion, AnimatePresence, useMotionValue, useTransform, animate } from 'framer-motion';
 
-// --- STYLES & ANIMATIONS ---
-const GLOBAL_STYLES = `
-  @import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@400;700&family=Jura:wght@300;500;700&display=swap');
-
-  body {
-    background-color: #000;
-    color: #e2e8f0;
-    font-family: 'Jura', sans-serif;
-    overflow-x: hidden;
-  }
-  
-  h1, h2, h3 {
-    font-family: 'Cinzel', serif;
-  }
-
-  /* Star Animations */
-  @keyframes twinkle {
-    0%, 100% { opacity: 0.3; transform: scale(0.8); }
-    50% { opacity: 1; transform: scale(1.2); }
-  }
-  
-  /* Black Hole Accretion Disk */
-  @keyframes spin-slow {
-    0% { transform: rotate(0deg); }
-    100% { transform: rotate(360deg); }
-  }
-  
-  @keyframes float {
-    0%, 100% { transform: translateY(0px); }
-    50% { transform: translateY(-10px); }
-  }
-
-  @keyframes pulse-glow {
-    0%, 100% { filter: drop-shadow(0 0 2px rgba(255,255,255,0.5)); }
-    50% { filter: drop-shadow(0 0 8px rgba(0,255,255,0.8)); }
-  }
-
-  @keyframes fade-up {
-    from { opacity: 0; transform: translateY(20px); }
-    to { opacity: 1; transform: translateY(0); }
-  }
-
-  .animate-float { animation: float 6s ease-in-out infinite; }
-  .animate-spin-slow { animation: spin-slow 20s linear infinite; }
-  .animate-spin-slower { animation: spin-slow 40s linear infinite reverse; }
-  .animate-fade-up { animation: fade-up 0.8s ease-out forwards; }
-  
-  /* Glassmorphism Utilities */
-  .glass-panel {
-    background: rgba(10, 10, 15, 0.4);
-    backdrop-filter: blur(12px);
-    -webkit-backdrop-filter: blur(12px);
-    border: 1px solid rgba(255, 255, 255, 0.08);
-    box-shadow: 0 4px 30px rgba(0, 0, 0, 0.5);
-    transition: all 0.3s ease;
-  }
-  
-  .glass-panel:hover {
-    background: rgba(20, 20, 30, 0.5);
-    border-color: rgba(255, 255, 255, 0.2);
-    box-shadow: 0 0 20px rgba(6, 182, 212, 0.15);
-    transform: translateY(-2px);
-  }
-`;
-
-// --- CONFIG ---
-const CONFIG = {
-  // Direct Discord CDN link provided
-  musicUrl: "https://cdn.discordapp.com/attachments/1386051430049124525/1447625523609210995/l8IahfK.mp3?ex=69384dd4&is=6936fc54&hm=b23729eda85603b83f10a8b03441c1e6142454ad6676a970f4006761b80aa524&",
-  
-  discord: "void_only.",
-  youtube: "https://youtube.com/@v.0.1.d_?si=mrKir7drsJyHuvRy",
-  github: "https://github.com/void-only"
-};
-
-// --- COMPONENTS ---
-
-// 1. Parallax Starfield (Restored & Smooth)
-const StarField = () => {
-  const [stars, setStars] = useState<{id: number, top: number, left: number, size: number, opacity: number}[]>([]);
-  const [offset, setOffset] = useState({ x: 0, y: 0 });
-
-  useEffect(() => {
-    // Generate stars
-    const newStars = Array.from({ length: 150 }, (_, i) => ({
-      id: i,
-      top: Math.random() * 100,
-      left: Math.random() * 100,
-      size: Math.random() * 2 + 0.5,
-      opacity: Math.random() * 0.7 + 0.1
-    }));
-    setStars(newStars);
-
-    const handleMouseMove = (e: MouseEvent) => {
-      // Calculate offset based on center of screen
-      const x = (e.clientX - window.innerWidth / 2) * 0.02; // Strength of effect
-      const y = (e.clientY - window.innerHeight / 2) * 0.02;
-      setOffset({ x, y });
-    };
-
-    window.addEventListener('mousemove', handleMouseMove);
-    return () => window.removeEventListener('mousemove', handleMouseMove);
-  }, []);
-
-  return (
-    <div className="fixed inset-0 z-0 pointer-events-none overflow-hidden bg-black">
-      {/* Stars Layer - Moves opposite to mouse for depth */}
-      <div 
-        className="absolute inset-0 transition-transform duration-100 ease-out"
-        style={{ transform: `translate(${-offset.x}px, ${-offset.y}px)` }}
-      >
-        {stars.map((star) => (
-          <div 
-            key={star.id}
-            className="absolute bg-white rounded-full"
-            style={{
-              top: `${star.top}%`,
-              left: `${star.left}%`,
-              width: `${star.size}px`,
-              height: `${star.size}px`,
-              opacity: star.opacity,
-              boxShadow: `0 0 ${star.size * 2}px white`
-            }}
-          />
-        ))}
-      </div>
-      
-      {/* Nebula Fog Layers - Move faster for foreground effect */}
-      <div 
-        className="absolute top-[-20%] left-[-20%] w-[80%] h-[80%] bg-purple-900/10 rounded-full blur-[150px] mix-blend-screen transition-transform duration-700 ease-out"
-        style={{ transform: `translate(${offset.x * 2}px, ${offset.y * 2}px)` }}
-      />
-      <div 
-        className="absolute bottom-[-20%] right-[-10%] w-[60%] h-[60%] bg-blue-900/10 rounded-full blur-[150px] mix-blend-screen transition-transform duration-700 ease-out"
-        style={{ transform: `translate(${offset.x * 3}px, ${offset.y * 3}px)` }}
-      />
-    </div>
-  );
-};
-
-// 2. The Singularity (Hero Visual)
-const Singularity = () => {
-  return (
-    <div className="relative w-[300px] h-[300px] md:w-[500px] md:h-[500px] flex items-center justify-center pointer-events-none">
-       {/* Accretion Disk (Outer) */}
-       <div className="absolute inset-0 rounded-full border-[1px] border-white/10 animate-spin-slow"></div>
-       <div className="absolute inset-[10%] rounded-full border-[1px] border-white/5 animate-spin-slower"></div>
-       
-       {/* Glow */}
-       <div className="absolute inset-[35%] bg-white/5 blur-[50px] rounded-full animate-pulse"></div>
-
-       {/* The Event Horizon (Black Hole) */}
-       <div className="absolute inset-[30%] bg-black rounded-full shadow-[0_0_60px_rgba(255,255,255,0.15)] z-10 border border-white/5"></div>
-       
-       {/* Photon Ring */}
-       <div className="absolute inset-[29%] rounded-full border border-white/20 blur-[1px] z-20"></div>
-    </div>
-  );
-};
-
-// 3. Constellation Cat (N.E.K.O)
-const ConstellationCat = () => {
-  const [mood, setMood] = useState<'idle' | 'purr'>('idle');
-  const [hovered, setHovered] = useState(false);
-  const [eyePos, setEyePos] = useState({ x: 0, y: 0 });
-
-  useEffect(() => {
-    const handleMouseMove = (e: MouseEvent) => {
-      // Calculate eye movement limited to a small radius
-      const maxMove = 5;
-      const x = (e.clientX - window.innerWidth / 2) / 30;
-      const y = (e.clientY - window.innerHeight / 2) / 30;
-      
-      setEyePos({
-        x: Math.max(-maxMove, Math.min(maxMove, x)),
-        y: Math.max(-maxMove, Math.min(maxMove, y))
-      });
-    };
-
-    window.addEventListener('mousemove', handleMouseMove);
-    return () => window.removeEventListener('mousemove', handleMouseMove);
-  }, []);
-
-  const handleClick = () => {
-    setMood('purr');
-    setTimeout(() => setMood('idle'), 2000);
-  };
-
-  return (
-    <div 
-      className="relative w-full h-64 glass-panel rounded-xl overflow-hidden flex flex-col items-center justify-center cursor-pointer group"
-      onClick={handleClick}
-      onMouseEnter={() => setHovered(true)}
-      onMouseLeave={() => setHovered(false)}
-    >
-      <div className="absolute top-4 right-4 text-[10px] tracking-[0.3em] text-slate-500 font-bold">
-        CONSTELLATION: N.E.K.O
-      </div>
-
-      <div className={`relative w-48 h-48 transition-all duration-700 ${hovered ? 'scale-105' : 'scale-100'}`}>
-        {/* The Constellation SVG */}
-        <svg viewBox="0 0 200 200" className="w-full h-full drop-shadow-[0_0_5px_rgba(255,255,255,0.5)]">
-           {/* Connecting Lines */}
-           <path 
-             d="M 50 70 L 40 40 L 70 50 L 100 40 L 130 50 L 160 40 L 150 70 L 170 120 L 140 160 L 60 160 L 30 120 Z" 
-             className="fill-transparent stroke-white/20 stroke-1"
-           />
-           {/* Inner Face Lines */}
-           <path d="M 60 160 L 100 120 L 140 160" className="fill-transparent stroke-white/10 stroke-[0.5]" />
-           
-           {/* Star Nodes (The Body) */}
-           {[
-             {cx:40, cy:40}, {cx:70, cy:50}, {cx:100, cy:40}, {cx:130, cy:50}, {cx:160, cy:40}, // Ears
-             {cx:50, cy:70}, {cx:150, cy:70}, // Cheeks
-             {cx:30, cy:120}, {cx:170, cy:120}, // Whiskers/Side
-             {cx:60, cy:160}, {cx:140, cy:160} // Chin
-           ].map((point, i) => (
-             <circle key={i} cx={point.cx} cy={point.cy} r={Math.random() * 2 + 1} fill="white" className="animate-pulse" style={{ animationDelay: `${i * 0.1}s` }} />
-           ))}
-
-           {/* Eyes (Glowing Stars) - NOW TRACKING MOUSE */}
-           <g 
-             className={`transition-transform duration-100 ${mood === 'purr' ? 'scale-y-10' : 'scale-y-100'}`} 
-             style={{ transformOrigin: 'center', transform: `translate(${eyePos.x}px, ${eyePos.y}px)` }}
-           >
-             {/* Left Eye */}
-             <circle cx="75" cy="90" r="3" fill="white" className="drop-shadow-[0_0_8px_cyan]" />
-             {/* Right Eye */}
-             <circle cx="125" cy="90" r="3" fill="white" className="drop-shadow-[0_0_8px_cyan]" />
-           </g>
-
-           {/* Heart/Core */}
-           {mood === 'purr' && (
-             <path 
-               d="M 100 130 L 105 125 L 110 130 L 100 145 L 90 130 L 95 125 Z" 
-               fill="#ec4899" 
-               className="animate-bounce drop-shadow-[0_0_10px_#ec4899]"
-             />
-           )}
-        </svg>
-      </div>
-
-      <div className="absolute bottom-4 text-center">
-        <div className="text-xs text-cyan-200/50 tracking-widest mb-1 transition-opacity duration-300 opacity-0 group-hover:opacity-100">
-          {mood === 'purr' ? 'AFFECTION DETECTED' : 'HOVER TO SYNC'}
-        </div>
-      </div>
-    </div>
-  );
-};
-
-// 4. Flux Matrix (New Interactive Toy)
-const FluxMatrix = () => {
-  const [cells, setCells] = useState(Array(50).fill(0)); // 0 = off, 1 = on
-
-  const handleHover = (index: number) => {
-    setCells(prev => {
-      const newCells = [...prev];
-      newCells[index] = 1;
-      return newCells;
-    });
-    
-    // Decay effect
-    setTimeout(() => {
-      setCells(prev => {
-        const newCells = [...prev];
-        if (newCells[index] === 1) newCells[index] = 0;
-        return newCells;
-      });
-    }, 800);
-  };
-
-  return (
-    <div className="glass-panel p-6 rounded-xl group hover:border-cyan-500/50 transition-colors">
-      <div className="flex justify-between items-start mb-6">
-        <div>
-          <div className="text-xl font-bold text-white mb-1 group-hover:text-cyan-400 transition-colors">FLUX MATRIX</div>
-          <div className="text-[10px] text-cyan-400 tracking-[0.2em]">INTERACTIVE FIELD</div>
-        </div>
-        <div className="p-2 bg-cyan-500/10 rounded-lg">
-          <Grid size={16} className="text-cyan-400" />
-        </div>
-      </div>
-      
-      {/* The Grid */}
-      <div className="grid grid-cols-10 gap-1 h-32 w-full cursor-crosshair">
-        {cells.map((active, i) => (
-          <div 
-            key={i}
-            onMouseEnter={() => handleHover(i)}
-            className={`rounded-sm transition-all duration-700 ${active ? 'bg-cyan-400 shadow-[0_0_10px_cyan] scale-110 duration-0' : 'bg-white/5 scale-100'}`}
-          ></div>
-        ))}
-      </div>
-      
-      <div className="mt-4 text-[10px] text-slate-500 font-mono flex items-center gap-2">
-        <Move size={10} /> HOVER TO DISTURB FIELD
-      </div>
-    </div>
-  );
-};
-
-// 5. Music Player
-const MusicPlayer = () => {
-  const audioRef = useRef<HTMLAudioElement | null>(null);
-  const [isPlaying, setIsPlaying] = useState(false);
-  const [volume] = useState(0.4); // setVolume removed to fix TS error
-
-  useEffect(() => {
-    audioRef.current = new Audio(CONFIG.musicUrl);
-    audioRef.current.loop = true;
-    audioRef.current.volume = volume;
-    return () => { audioRef.current?.pause(); };
-  }, []); // volume dependency removed as it's static
-
-  const toggle = () => {
-    if(!audioRef.current) return;
-    if(isPlaying) audioRef.current.pause();
-    else audioRef.current.play().catch(() => console.log("Autoplay blocked")); // 'e' removed to fix TS error
-    setIsPlaying(!isPlaying);
-  };
-
-  return (
-    <div className="glass-panel p-6 rounded-xl flex items-center justify-between group">
-      <div className="flex items-center gap-6">
-        <div className={`relative w-12 h-12 flex items-center justify-center rounded-full border border-white/10 ${isPlaying ? 'animate-spin-slow' : ''}`}>
-          <Disc size={24} className="text-white/80" />
-          {isPlaying && <div className="absolute inset-0 border border-cyan-500/50 rounded-full animate-ping opacity-20"></div>}
-        </div>
-        <div>
-          <div className="text-xs text-slate-500 tracking-[0.2em] mb-1">NOW PLAYING</div>
-          <div className="text-lg font-bold text-white tracking-widest">KEROSENE</div>
-        </div>
-      </div>
-
-      <div className="flex items-center gap-4">
-        {isPlaying && (
-          <div className="flex items-end gap-1 h-8">
-            {[...Array(5)].map((_, i) => (
-              <div 
-                key={i} 
-                className="w-1 bg-cyan-500 animate-pulse" 
-                style={{ 
-                  height: `${Math.random() * 100}%`,
-                  animationDuration: `${0.5 + Math.random() * 0.5}s` 
-                }}
-              />
-            ))}
-          </div>
-        )}
-
-        <button 
-          onClick={toggle}
-          className="w-10 h-10 rounded-full bg-white/5 hover:bg-white/20 flex items-center justify-center transition-all border border-white/10"
-        >
-          {isPlaying ? <Pause size={16} fill="white" /> : <Play size={16} fill="white" className="ml-1" />}
-        </button>
-      </div>
-    </div>
-  );
-};
-
-const CopyID = () => {
-  const [copied, setCopied] = useState(false);
-
-  const handleCopy = () => {
-    const el = document.createElement('textarea');
-    el.value = CONFIG.discord;
-    document.body.appendChild(el);
-    el.select();
-    document.execCommand('copy');
-    document.body.removeChild(el);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
-  };
-
-  return (
-    <div 
-      onClick={handleCopy} 
-      className="glass-panel p-4 rounded-xl flex items-center justify-between cursor-pointer group active:scale-95 transition-transform"
-    >
-      <div className="flex items-center gap-4">
-        <div className="p-2 bg-[#5865F2]/20 rounded-lg text-[#5865F2] group-hover:text-white transition-colors">
-          <Gamepad2 size={20} />
-        </div>
-        <div>
-          <div className="text-[10px] text-slate-500 tracking-[0.2em]">DISCORD ID</div>
-          <div className="text-sm font-bold text-slate-200">{CONFIG.discord}</div>
-        </div>
-      </div>
-      <div className="text-slate-500 group-hover:text-white transition-colors">
-        {copied ? <Check size={18} className="text-green-400" /> : <Copy size={18} />}
-      </div>
-    </div>
-  );
-};
-
-// Reveal on Scroll Component
-const RevealOnScroll = ({ children, delay = 0 }: { children: React.ReactNode, delay?: number }) => {
-  const [isVisible, setIsVisible] = useState(false);
-  const ref = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    const observer = new IntersectionObserver(
-      ([entry]) => {
-        if (entry.isIntersecting) {
-          setIsVisible(true);
-          observer.unobserve(entry.target);
-        }
-      },
-      { threshold: 0.1 }
-    );
-    if (ref.current) observer.observe(ref.current);
-    return () => observer.disconnect();
-  }, []);
-
-  return (
-    <div 
-      ref={ref} 
-      className={`transition-all duration-1000 transform ${isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-10'}`}
-      style={{ transitionDelay: `${delay}ms` }}
-    >
-      {children}
-    </div>
-  );
-};
-
-// Typewriter Component
-const Typewriter = ({ texts }: { texts: string[] }) => {
-  const [textIndex, setTextIndex] = useState(0);
-  const [charIndex, setCharIndex] = useState(0);
-  const [isDeleting, setIsDeleting] = useState(false);
-  
-  useEffect(() => {
-    const currentText = texts[textIndex];
-    const speed = isDeleting ? 50 : 150;
-
-    const timeout = setTimeout(() => {
-      if (!isDeleting && charIndex < currentText.length) {
-        setCharIndex(charIndex + 1);
-      } else if (isDeleting && charIndex > 0) {
-        setCharIndex(charIndex - 1);
-      } else if (!isDeleting && charIndex === currentText.length) {
-        setTimeout(() => setIsDeleting(true), 2000);
-      } else if (isDeleting && charIndex === 0) {
-        setIsDeleting(false);
-        setTextIndex((prev) => (prev + 1) % texts.length);
-      }
-    }, speed);
-
-    return () => clearTimeout(timeout);
-  }, [charIndex, isDeleting, textIndex, texts]);
-
-  return (
-    <div className="h-6 flex items-center justify-center gap-2">
-      <span className="text-xs md:text-sm text-slate-400 font-light tracking-[0.3em] uppercase">
-        {texts[textIndex].substring(0, charIndex)}
-      </span>
-      <span className="w-0.5 h-4 bg-white animate-pulse"></span>
-    </div>
-  );
-};
-
-// Main App Structure
 const App = () => {
-  return (
-    <div className="min-h-screen relative selection:bg-cyan-500/30 selection:text-white">
-      <style>{GLOBAL_STYLES}</style>
-      <StarField />
+  const [bootFinished, setBootFinished] = useState(false);
+  const [isDay, setIsDay] = useState(true);
+  const [time, setTime] = useState("00:00");
+
+  // --- Clock & Theme Logic ---
+  useEffect(() => {
+    const updateTime = () => {
+      const now = new Date();
+      const hours = now.getHours();
       
-      {/* Scroll Fade Overlay */}
-      <div className="fixed inset-0 bg-gradient-to-b from-transparent via-transparent to-black pointer-events-none z-0"></div>
+      // Update time string
+      setTime(now.toLocaleTimeString('en-US', {
+        hour12: false,
+        hour: '2-digit',
+        minute: '2-digit'
+      }));
 
-      <div className="relative z-10 max-w-5xl mx-auto px-6 py-20 md:py-32">
+      // Update Day/Night state (Day is 06:00 to 18:00)
+      setIsDay(hours >= 6 && hours < 18);
+    };
+
+    updateTime();
+    const interval = setInterval(updateTime, 1000);
+    return () => clearInterval(interval);
+  }, []);
+
+  return (
+    // w-full ensures consistent width across devices
+    <div className="relative w-full h-screen bg-black text-white overflow-hidden selection:bg-white selection:text-black">
+      {/* Global Styles for Font and specific effects */}
+      <style>{`
+        @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;500;700;900&display=swap');
         
-        {/* HERO SECTION */}
-        <section className="flex flex-col items-center justify-center text-center min-h-[70vh] mb-32">
-          
-          <Singularity />
-          
-          <div className="mt-[-100px] md:mt-[-150px] relative z-20 space-y-6 animate-float">
-            <h1 className="text-6xl md:text-9xl font-bold text-white tracking-[0.2em] drop-shadow-[0_0_30px_rgba(255,255,255,0.3)]">
-              V O I D
-            </h1>
-            <Typewriter texts={["GAME DEV", "EDITOR", "GAMER", "CAT LOVER"]} />
-          </div>
-          
-          <div className="absolute bottom-10 animate-bounce opacity-30">
-            <div className="w-[1px] h-20 bg-gradient-to-b from-transparent via-white to-transparent"></div>
-          </div>
-        </section>
+        body, html { 
+            font-family: 'Orbitron', sans-serif; 
+            margin: 0;
+            padding: 0;
+            background-color: #000;
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+        }
+        
+        .neon-text {
+          text-shadow: 
+            0 0 5px rgba(255, 255, 255, 0.9),
+            0 0 10px rgba(255, 255, 255, 0.6),
+            0 0 20px rgba(255, 255, 255, 0.4);
+        }
 
-        {/* CONTENT GRID */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-          
-          {/* LEFT COLUMN */}
-          <div className="space-y-8">
-            <RevealOnScroll delay={100}>
-              <h2 className="text-2xl text-white tracking-[0.2em] border-b border-white/10 pb-4">TRANSMISSIONS</h2>
-            </RevealOnScroll>
+        .icon-glow {
+           filter: drop-shadow(0 0 8px rgba(255, 255, 255, 0.8));
+        }
+        
+        .grid-bg {
+          background-image: 
+            linear-gradient(rgba(30, 30, 30, 0.5) 1px, transparent 1px),
+            linear-gradient(90deg, rgba(30, 30, 30, 0.5) 1px, transparent 1px);
+          background-size: 40px 40px;
+        }
+
+        /* Fixed Star Drift Animation - Left to Right */
+        @keyframes drift {
+          0% { 
+            transform: translateX(0px) translateY(0px); 
+            opacity: 0; 
+          }
+          10% { 
+            opacity: var(--star-opacity); 
+          }
+          90% { 
+            opacity: var(--star-opacity); 
+          }
+          100% { 
+            transform: translateX(150px) translateY(20px); 
+            opacity: 0; 
+          }
+        }
+      `}</style>
+
+      {/* Ambient Starfield Background (Visible after boot) */}
+      <motion.div 
+        initial={{ opacity: 0 }}
+        animate={{ opacity: bootFinished ? 1 : 0 }}
+        transition={{ duration: 2, delay: 0.5 }}
+        className="absolute inset-0 pointer-events-none"
+      >
+          <Starfield />
+      </motion.div>
+
+      {/* Main Content Area (Always mounted, fades in) */}
+      <motion.main 
+        initial={{ opacity: 0 }}
+        animate={{ opacity: bootFinished ? 1 : 0 }}
+        transition={{ duration: 1, delay: 0.2 }}
+        className="fixed inset-0 z-10 flex items-center justify-center pointer-events-none"
+      >
+         <div className="pointer-events-auto">
+             {/* Main Content Placeholder */}
+         </div>
+      </motion.main>
+
+      {/* Top Right UI (Clock & Icons) - TIGHT spacing */}
+      <motion.div 
+        initial={{ opacity: 0 }}
+        animate={{ opacity: bootFinished ? 1 : 0 }}
+        transition={{ duration: 1, delay: 0.5 }}
+        className="fixed top-4 right-4 flex items-center gap-1 z-50 select-none"
+      >
+        <motion.div 
+            className="icon-glow text-white flex items-center justify-center"
+            whileHover={{ scale: 1.1 }}
+            transition={{ type: "spring", stiffness: 400, damping: 10 }}
+        >
+          {/* Filled icons for better visibility */}
+          {isDay ? (
+            <Sun size={14} strokeWidth={2} fill="currentColor" className="text-white" />
+          ) : (
+            <Moon size={14} strokeWidth={2} fill="currentColor" className="text-white" />
+          )}
+        </motion.div>
+        
+        {/* Clock Text */}
+        <div className="text-[10px] neon-text tracking-widest font-bold text-right">
+          {time}
+        </div>
+      </motion.div>
+      
+      {/* AI Companion - Floating Cat Icon */}
+      <AICompanion bootFinished={bootFinished} />
+
+      {/* Boot Sequence Overlay */}
+      <AnimatePresence>
+        {!bootFinished && (
+          <BootSequence onComplete={() => setBootFinished(true)} />
+        )}
+      </AnimatePresence>
+    </div>
+  );
+};
+
+// --- Helper Component: Typewriter Message ---
+const TypewriterMessage = ({ text, color = "text-white" }: { text: string, color?: string }) => {
+  const [displayedText, setDisplayedText] = useState("");
+
+  // Calculate a fixed width based on text length to keep centering stable
+  const estimatedWidth = Math.min(220, Math.max(80, text.length * 8));
+
+  useEffect(() => {
+    let i = 0;
+    setDisplayedText("");
+    const interval = setInterval(() => {
+      if (i < text.length) {
+        setDisplayedText(text.slice(0, i + 1));
+        i++;
+      } else {
+        clearInterval(interval);
+      }
+    }, 30); 
+
+    return () => clearInterval(interval);
+  }, [text]);
+
+  return (
+    <motion.div
+        initial={{ opacity: 0, y: 5, x: "-50%" }}
+        animate={{ opacity: 1, y: 0, x: "-50%" }}
+        exit={{ opacity: 0, y: 2, x: "-50%" }}
+        style={{ width: `${estimatedWidth}px` }} 
+        // Decreased size to text-[8px]
+        className={`absolute bottom-full left-1/2 mb-2 text-center text-[8px] font-bold ${color} tracking-widest pointer-events-none whitespace-normal leading-relaxed`}
+    >
+        {displayedText}
+        {/* Cursor */}
+        <span className={`inline-block w-[2px] h-[8px] ${color === 'text-white' ? 'bg-white' : 'bg-red-500'} ml-1 align-middle animate-pulse`}></span>
+    </motion.div>
+  );
+};
+
+// --- Sub-Component: AI Companion (Emotional Cat) ---
+const AICompanion = ({ bootFinished }) => {
+  const [message, setMessage] = useState("");
+  const timerRef = useRef<NodeJS.Timeout | null>(null);
+  
+  // State: 'idle' | 'sleeping' | 'dizzy' | 'dizzy-recover' | 'angry'
+  const [mood, setMood] = useState('idle');
+  const [blink, setBlink] = useState(false);
+  
+  // Interaction tracking
+  const tapCount = useRef(0);
+  const lastTapTime = useRef(0);
+  const inactivityTimer = useRef<NodeJS.Timeout | null>(null);
+  const tapResetTimer = useRef<NodeJS.Timeout | null>(null);
+  const angryTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const dizzyTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const recoverTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Motion Values for 3D Face Movement
+  const faceX = useMotionValue(0);
+  const faceY = useMotionValue(0);
+
+  // --- 1. Inactivity / Sleep Logic ---
+  const resetInactivity = () => {
+    if (inactivityTimer.current) clearTimeout(inactivityTimer.current);
+    if (mood === 'angry' || mood === 'dizzy' || mood === 'dizzy-recover') return; // Don't sleep if emotional
+    
+    inactivityTimer.current = setTimeout(() => {
+        setMood('sleeping');
+        setMessage(""); // Clear any active messages
+    }, 8000); // 8 seconds to sleep
+  };
+
+  useEffect(() => {
+    if (bootFinished) resetInactivity();
+    return () => {
+        if (inactivityTimer.current) clearTimeout(inactivityTimer.current);
+        if (angryTimeoutRef.current) clearTimeout(angryTimeoutRef.current);
+        if (dizzyTimeoutRef.current) clearTimeout(dizzyTimeoutRef.current);
+        if (recoverTimeoutRef.current) clearTimeout(recoverTimeoutRef.current);
+    };
+  }, [bootFinished]);
+
+  // --- 2. Looking Around Logic (Idle State Only) ---
+  useEffect(() => {
+    let lookTimeout: NodeJS.Timeout;
+
+    const triggerLook = () => {
+        const newX = Math.random() * 8 - 4; // Range -4 to 4px
+        const newY = Math.random() * 6 - 3; // Range -3 to 3px
+        animate(faceX, newX, { duration: 0.6, ease: "circOut" });
+        animate(faceY, newY, { duration: 0.6, ease: "circOut" });
+        
+        // Only schedule next look if we are still idle
+        lookTimeout = setTimeout(triggerLook, Math.random() * 2000 + 1500);
+    };
+
+    // Only start the loop if we are idle
+    if (mood === 'idle') {
+        triggerLook();
+    } else {
+        // Stop any pending look timeouts
+        clearTimeout(lookTimeout);
+        // Center face immediately
+        animate(faceX, 0, { duration: 0.5 });
+        animate(faceY, 0, { duration: 0.5 });
+    }
+
+    // Blink Logic
+    const triggerBlink = () => {
+      if (mood !== 'sleeping' && mood !== 'dizzy' && mood !== 'dizzy-recover') {
+          setBlink(true);
+          setTimeout(() => setBlink(false), 150);
+      }
+      setTimeout(triggerBlink, Math.random() * 3000 + 2000);
+    };
+    const blinkTimer = setTimeout(triggerBlink, 2000);
+
+    return () => {
+      clearTimeout(lookTimeout);
+      clearTimeout(blinkTimer);
+    };
+  }, [mood]);
+
+  // --- 3. Interaction Logic ---
+  const handleClick = () => {
+    // Lock interaction if angry
+    if (mood === 'angry') return;
+
+    const now = Date.now();
+    
+    // Wake up if sleeping
+    if (mood === 'sleeping') {
+        setMood('idle');
+        setMessage("system online.");
+        resetInactivity();
+        return;
+    }
+
+    // Reset Inactivity Timer
+    resetInactivity();
+
+    // Tap Counting for Dizzy/Angry
+    if (now - lastTapTime.current < 400) {
+        tapCount.current += 1;
+    } else {
+        tapCount.current = 1; // Reset count if tapping too slow
+    }
+    lastTapTime.current = now;
+
+    // Clear previous short reset timer
+    if (tapResetTimer.current) clearTimeout(tapResetTimer.current);
+
+    // THRESHOLD: ANGRY (>= 6 rapid taps)
+    if (tapCount.current >= 6) {
+        setMood('angry');
+        setMessage("angy");
+        
+        // Clear dizzy timeouts
+        if (dizzyTimeoutRef.current) clearTimeout(dizzyTimeoutRef.current);
+        if (recoverTimeoutRef.current) clearTimeout(recoverTimeoutRef.current);
+        
+        // Cool down after 5 seconds
+        if (angryTimeoutRef.current) clearTimeout(angryTimeoutRef.current);
+        angryTimeoutRef.current = setTimeout(() => {
+            setMood('idle');
+            tapCount.current = 0;
+            setMessage("");
+            resetInactivity();
+        }, 5000);
+    } 
+    // THRESHOLD: DIZZY (>= 4 rapid taps)
+    else if (tapCount.current >= 4) {
+        setMood('dizzy');
+        setMessage("calibration lost...");
+        
+        // Clear existing dizzy sequence
+        if (dizzyTimeoutRef.current) clearTimeout(dizzyTimeoutRef.current);
+        if (recoverTimeoutRef.current) clearTimeout(recoverTimeoutRef.current);
+
+        // 1. Stay Dizzy for 4.5 seconds
+        dizzyTimeoutRef.current = setTimeout(() => {
+            setMood('dizzy-recover');
+        }, 4500);
+
+        // 2. Shake head for 0.5s then back to Idle (Total 5s)
+        recoverTimeoutRef.current = setTimeout(() => {
+            setMood('idle');
+            tapCount.current = 0;
+            setMessage("");
+            resetInactivity();
+        }, 5000);
+    } 
+    // THRESHOLD: NORMAL INTERACTION
+    else {
+        // Only set to idle if not already dizzy
+        if (mood !== 'dizzy' && mood !== 'dizzy-recover') {
+            setMood('idle');
+            if (timerRef.current) clearTimeout(timerRef.current);
+            const normalMessages = [
+                "hooman… why tap?",
+                "nyahaha, that tickled.",
+                "nya~ you found my button.",
+                "grrrnyaa.",
+                "boop denied.",
+                "i allow one boop, hooman.",
+                "puny hooman, stop this!",
+                "meow? no.",
+                "purr...haps later.",
+                "do not disturb the floof.",
+                "my whiskers detect cringe."
+            ];
+            const randomMsg = normalMessages[Math.floor(Math.random() * normalMessages.length)];
+            setMessage(randomMsg);
+            timerRef.current = setTimeout(() => setMessage(""), 2500);
             
-            {/* Music Player */}
-            <RevealOnScroll delay={200}>
-              <MusicPlayer />
-            </RevealOnScroll>
+            // Reset tap count if user stops tapping
+            tapResetTimer.current = setTimeout(() => {
+                tapCount.current = 0;
+            }, 1500);
+        }
+    }
+  };
 
-            {/* Socials */}
-            <div className="grid gap-4">
-              <RevealOnScroll delay={300}>
-                <CopyID />
-              </RevealOnScroll>
-              
-              <RevealOnScroll delay={400}>
-                <a href={CONFIG.youtube} target="_blank" rel="noreferrer" className="glass-panel p-4 rounded-xl flex items-center justify-between group active:scale-95 transition-transform">
-                  <div className="flex items-center gap-4">
-                    <div className="p-2 bg-[#FF0000]/20 rounded-lg text-[#FF0000] group-hover:text-white transition-colors">
-                      <Youtube size={20} />
-                    </div>
-                    <div>
-                      <div className="text-[10px] text-slate-500 tracking-[0.2em]">CHANNEL</div>
-                      <div className="text-sm font-bold text-slate-200">V O I D</div>
-                    </div>
-                  </div>
-                  <ExternalLink size={18} className="text-slate-500 group-hover:text-white" />
-                </a>
-              </RevealOnScroll>
+  // --- Visual Helpers based on Mood ---
+  const catColor = mood === 'angry' ? '#ff3b3b' : 'white';
+  const shadowColor = mood === 'angry' ? 'rgba(255, 59, 59, 0.8)' : 'rgba(255,255,255,0.9)';
+  
+  return (
+    <div className="fixed top-[20%] w-full flex justify-center z-40 pointer-events-none">
+         <motion.div
+            initial={{ opacity: 0, scale: 0 }}
+            animate={{ opacity: bootFinished ? 1 : 0, scale: bootFinished ? 1 : 0 }}
+            transition={{ delay: 1, duration: 0.5 }}
+            className="relative pointer-events-auto flex flex-col items-center"
+         >
+            {/* Sleeping Zzz Animation */}
+            <AnimatePresence>
+                {mood === 'sleeping' && (
+                    <motion.div
+                        key="zzz-container"
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        exit={{ opacity: 0 }} 
+                        className="absolute top-0 right-2 z-50 flex flex-col items-center pointer-events-none"
+                    >
+                         {/* Z 1 */}
+                         <motion.span
+                            initial={{ opacity: 0, y: 5, x: -2 }}
+                            animate={{ opacity: 1, y: -10, x: 2 }}
+                            exit={{ opacity: 0 }}
+                            transition={{ duration: 1.5, repeat: Infinity, delay: 0 }}
+                            className="text-[8px] font-bold text-white/80 absolute"
+                        >z</motion.span>
+                         {/* Z 2 */}
+                         <motion.span
+                            initial={{ opacity: 0, y: 5, x: 2 }}
+                            animate={{ opacity: 1, y: -15, x: -2 }}
+                            exit={{ opacity: 0 }}
+                            transition={{ duration: 1.5, repeat: Infinity, delay: 0.5 }}
+                            className="text-[10px] font-bold text-white/80 absolute"
+                        >z</motion.span>
+                    </motion.div>
+                )}
+            </AnimatePresence>
 
-              <RevealOnScroll delay={500}>
-                <a href={CONFIG.github} target="_blank" rel="noreferrer" className="glass-panel p-4 rounded-xl flex items-center justify-between group active:scale-95 transition-transform">
-                  <div className="flex items-center gap-4">
-                    <div className="p-2 bg-white/10 rounded-lg text-white group-hover:text-cyan-400 transition-colors">
-                      <Github size={20} />
-                    </div>
-                    <div>
-                      <div className="text-[10px] text-slate-500 tracking-[0.2em]">REPOSITORY</div>
-                      <div className="text-sm font-bold text-slate-200">GITHUB</div>
-                    </div>
-                  </div>
-                  <ExternalLink size={18} className="text-slate-500 group-hover:text-white" />
-                </a>
-              </RevealOnScroll>
-            </div>
+            {/* Message */}
+             <AnimatePresence>
+                {message && mood !== 'sleeping' && 
+                    <TypewriterMessage 
+                        text={message} 
+                        color={mood === 'angry' ? "text-red-500" : "text-white"} 
+                    />
+                }
+            </AnimatePresence>
 
-            {/* Loadout */}
-            <RevealOnScroll delay={600}>
-              <div className="glass-panel p-6 rounded-xl space-y-4">
-                 <div className="flex items-center gap-3 mb-2">
-                   <Zap className="text-cyan-400" size={18} />
-                   <span className="tracking-[0.2em] font-bold">LOADOUT</span>
-                 </div>
-                 <div className="space-y-3">
-                   {[
-                     { name: "Ryzen 9 5900X", type: "CORE" },
-                     { name: "RTX 4080 FE", type: "VISUAL" },
-                     { name: "Wooting 60HE", type: "INPUT" },
-                     { name: "Alienware AW3423DW", type: "DISPLAY" }
-                   ].map((item, i) => (
-                     <div key={i} className="flex justify-between items-center text-sm border-b border-white/5 pb-2 last:border-0">
-                       <span className="text-slate-300">{item.name}</span>
-                       <span className="text-[10px] text-slate-600 tracking-wider">{item.type}</span>
-                     </div>
-                   ))}
-                 </div>
-              </div>
-            </RevealOnScroll>
-          </div>
+            {/* The Cat Icon */}
+            <motion.div
+                whileHover={mood !== 'angry' ? { scale: 1.1 } : {}}
+                whileTap={mood !== 'angry' ? { scale: 0.95 } : {}} // Much more subtle tap effect
+                onClick={handleClick}
+                style={{ touchAction: "manipulation" }} 
+                animate={
+                    // Angry: Fast, small vibration (Left/Right)
+                    mood === 'angry' ? { x: [-1, 1, -1], y: [-1, 1, -1] } :
+                    // Dizzy: Static (Eyes spin)
+                    mood === 'dizzy' ? { scale: 1 } :
+                    // Dizzy Recover: Head Shake
+                    mood === 'dizzy-recover' ? { rotate: [0, -20, 20, -20, 20, 0] } :
+                    // Default Float
+                    { y: [0, -4, 0] } 
+                }
+                transition={
+                    mood === 'angry' 
+                    ? { duration: 0.05, repeat: Infinity } // Very fast vibration
+                    : mood === 'dizzy-recover' 
+                    ? { duration: 0.5 } // Fast shake duration
+                    : { 
+                        scale: { type: "spring", stiffness: 800, damping: 10 },
+                        y: { duration: 4, repeat: Infinity, ease: "easeInOut" } // Float
+                      }
+                }
+                className="relative cursor-pointer group flex items-center justify-center p-4"
+            >
+               {/* Custom "Cyber Cat" SVG */}
+               <svg 
+                  width="44" 
+                  height="44" 
+                  viewBox="0 0 100 100" 
+                  style={{ 
+                      overflow: 'visible',
+                      filter: `drop-shadow(0 0 12px ${shadowColor})`
+                  }}
+                  className="transition-all duration-300"
+               >
+                 {/* Main Head Shape - Sleek & Geometric */}
+                 <motion.path 
+                   d="M 20 35 L 15 15 L 40 25 L 60 25 L 85 15 L 80 35 Q 90 50 85 70 Q 50 90 15 70 Q 10 50 20 35 Z" 
+                   fill={catColor}
+                   animate={{ fill: catColor }} // Animate color change for anger
+                   transition={{ duration: 0.3 }}
+                 />
+                 
+                 {/* 3D FACE GROUP (Eyes, Nose, Whiskers) */}
+                 <motion.g style={{ x: faceX, y: faceY }}>
+                    
+                    {/* EYES */}
+                    {mood === 'sleeping' ? (
+                        // Sleeping Eyes (Lines)
+                        <>
+                           <path d="M 30 55 L 40 55" stroke="black" strokeWidth="2" strokeLinecap="round" />
+                           <path d="M 60 55 L 70 55" stroke="black" strokeWidth="2" strokeLinecap="round" />
+                        </>
+                    ) : (
+                        // Awake Eyes
+                        <>
+                            {/* Left Eye */}
+                            <g transform="translate(35, 55)">
+                                {mood === 'dizzy' || mood === 'dizzy-recover' ? (
+                                    <motion.path 
+                                        d="M -5 0 A 5 5 0 0 1 5 0 A 2.5 2.5 0 0 1 0 0"
+                                        stroke="black" strokeWidth="2" fill="none"
+                                        animate={{ rotate: 360 }}
+                                        transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
+                                    />
+                                ) : mood === 'angry' ? (
+                                    <path d="M -5 -3 L 5 3 L -5 3 Z" fill="black" /> // Angry Slant
+                                ) : (
+                                    <motion.circle 
+                                        r="5"
+                                        fill="black" 
+                                        animate={{ scaleY: blink ? 0.05 : 1 }}
+                                        transition={{ duration: 0.1 }}
+                                    />
+                                )}
+                            </g>
 
-          {/* RIGHT COLUMN */}
-          <div className="space-y-8">
-             <RevealOnScroll delay={150}>
-               <h2 className="text-2xl text-white tracking-[0.2em] border-b border-white/10 pb-4">ARCHIVES</h2>
-             </RevealOnScroll>
+                            {/* Right Eye */}
+                            <g transform="translate(65, 55)">
+                                {mood === 'dizzy' || mood === 'dizzy-recover' ? (
+                                    <motion.path 
+                                        d="M -5 0 A 5 5 0 0 1 5 0 A 2.5 2.5 0 0 1 0 0"
+                                        stroke="black" strokeWidth="2" fill="none"
+                                        animate={{ rotate: 360 }}
+                                        transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
+                                    />
+                                ) : mood === 'angry' ? (
+                                    <path d="M 5 -3 L -5 3 L 5 3 Z" fill="black" /> // Angry Slant
+                                ) : (
+                                    <motion.circle 
+                                        r="5"
+                                        fill="black" 
+                                        animate={{ scaleY: blink ? 0.05 : 1 }}
+                                        transition={{ duration: 0.1 }}
+                                    />
+                                )}
+                            </g>
+                        </>
+                    )}
+                 
+                    {/* Nose */}
+                    <path d="M 46 64 L 54 64 L 50 69 Z" fill="black" />
 
-             {/* N.E.K.O */}
-             <RevealOnScroll delay={250}>
-               <ConstellationCat />
-             </RevealOnScroll>
-
-             {/* Projects & Toys */}
-             <div className="space-y-4">
+                    {/* Whiskers */}
+                    <path d="M 20 60 L 5 55" stroke="black" strokeWidth="3" strokeLinecap="round" />
+                    <path d="M 20 68 L 8 68" stroke="black" strokeWidth="3" strokeLinecap="round" />
+                    
+                    <path d="M 80 60 L 95 55" stroke="black" strokeWidth="3" strokeLinecap="round" />
+                    <path d="M 80 68 L 92 68" stroke="black" strokeWidth="3" strokeLinecap="round" />
+                 </motion.g>
+               </svg>
                
-               {/* Flux Matrix (REPLACES VOID ENGINE) */}
-               <RevealOnScroll delay={350}>
-                 <FluxMatrix />
-               </RevealOnScroll>
+               {/* Extra "Life" Pulse (Red if angry) */}
+               <div className={`absolute inset-0 rounded-full blur-xl animate-pulse opacity-0 group-hover:opacity-50 transition-opacity duration-500 ${mood === 'angry' ? 'bg-red-500/30' : 'bg-white/10'}`} />
+            </motion.div>
+         </motion.div>
+     </div>
+  );
+};
 
-               {/* Active Games */}
-               <RevealOnScroll delay={450}>
-                 <div className="glass-panel p-6 rounded-xl hover:border-green-500/50 transition-colors group">
-                   <div className="flex justify-between items-start mb-4">
-                     <div>
-                       <div className="text-xl font-bold text-white mb-1 group-hover:text-green-400 transition-colors">MISSION STATUS</div>
-                       <div className="text-[10px] text-green-400 tracking-[0.2em]">ACTIVE GAMES</div>
-                     </div>
-                     <div className="p-2 bg-green-500/10 rounded-lg">
-                       <Gamepad2 size={16} className="text-green-400" />
-                     </div>
-                   </div>
-                   
-                   <div className="space-y-4">
-                      <div className="flex justify-between items-center">
-                        <span className="text-sm text-slate-300">ARC RAIDERS</span>
-                        <div className="flex items-center gap-2">
-                          <div className="w-1.5 h-1.5 bg-green-500 rounded-full animate-pulse"></div>
-                          <span className="text-[10px] text-green-500">ONLINE</span>
-                        </div>
-                      </div>
-                      <div className="flex justify-between items-center">
-                        <span className="text-sm text-slate-300">BATTLEFIELD 6</span>
-                        <div className="flex items-center gap-2">
-                          <div className="w-1.5 h-1.5 bg-yellow-500 rounded-full"></div>
-                          <span className="text-[10px] text-yellow-500">STANDBY</span>
-                        </div>
-                      </div>
-                   </div>
-                 </div>
-               </RevealOnScroll>
-             </div>
-          </div>
+// --- Sub-Component: Ambient Starfield ---
+const Starfield = () => {
+    // Generate stars only once
+    const stars = useMemo(() => {
+        const starCount = 60; 
+        return Array.from({ length: starCount }).map((_, i) => ({
+            id: i,
+            top: `${Math.random() * 100}%`,
+            left: `${Math.random() * 120 - 20}%`, 
+            size: Math.random() < 0.7 ? 1 : 2, 
+            opacity: Math.random() * 0.5 + 0.2,
+            duration: Math.random() * 20 + 20, 
+            delay: Math.random() * 20,
+        }));
+    }, []);
 
+    return (
+        <div className="w-full h-full overflow-hidden absolute inset-0">
+            {stars.map((star) => (
+                <div
+                    key={star.id}
+                    className="absolute bg-white rounded-full"
+                    style={{
+                        top: star.top,
+                        left: star.left,
+                        width: `${star.size}px`,
+                        height: `${star.size}px`,
+                        '--star-opacity': star.opacity, 
+                        opacity: 0, 
+                        animation: `drift ${star.duration}s infinite linear`,
+                        animationDelay: `-${star.delay}s`,
+                        willChange: 'transform, opacity'
+                    } as React.CSSProperties}
+                />
+            ))}
+        </div>
+    );
+};
+
+// --- Sub-Component: Boot Sequence ---
+const BootSequence = ({ onComplete }) => {
+  const count = useMotionValue(0);
+  const rounded = useTransform(count, Math.round);
+  const [typedText, setTypedText] = useState("");
+  const fullText = "Initializing..."; 
+
+  useEffect(() => {
+    // 1. Progress Bar Animation (Reduced to 3s)
+    const animation = animate(count, 
+      [0, 15, 28, 35, 60, 75, 82, 98, 100], 
+      { 
+        duration: 3, 
+        times: [0, 0.1, 0.3, 0.35, 0.5, 0.7, 0.85, 0.95, 1],
+        ease: "easeInOut",
+        onComplete: () => {
+          setTimeout(onComplete, 200); 
+        }
+      }
+    );
+
+    return () => animation.stop();
+  }, []);
+
+  // 2. Typewriter Effect Logic
+  useEffect(() => {
+    let i = 0;
+    setTypedText(""); // Reset
+    
+    const typeInterval = setInterval(() => {
+        i++;
+        // Use slice instead of index access to strictly safely get the substring
+        setTypedText(fullText.slice(0, i)); 
+        
+        if (i >= fullText.length) {
+            clearInterval(typeInterval);
+        }
+    }, 100); 
+
+    return () => clearInterval(typeInterval);
+  }, []);
+
+  return (
+    <motion.div
+      className="fixed inset-0 bg-black z-50 flex flex-col items-center justify-center cursor-wait"
+      exit={{ opacity: 0, transition: { duration: 0.8, ease: "easeOut" } }}
+    >
+      <div className="absolute inset-0 grid-bg opacity-20 pointer-events-none" />
+
+      <div className="relative z-10 w-full max-w-md px-6 flex flex-col gap-4">
+        
+        {/* Progress Bar */}
+        <div className="w-full h-[2px] bg-neutral-900 rounded-full overflow-hidden relative">
+          <motion.div 
+            className="h-full bg-white shadow-[0_0_15px_rgba(255,255,255,0.8)]"
+            style={{ width: useTransform(count, (value) => `${value}%`) }}
+          />
         </div>
 
-        {/* Footer */}
-        <footer className="mt-32 text-center text-[10px] text-slate-700 tracking-[0.5em] uppercase">
-          End of Transmission // VOID Systems
-        </footer>
-
+        {/* Text Info */}
+        <div className="flex justify-between w-full text-xs tracking-[0.2em] font-bold h-6">
+          <span className="text-white text-shadow-[0_0_8px_rgba(255,255,255,0.8)] flex items-center">
+            {typedText}
+            {/* Blinking Block Cursor */}
+            <motion.span 
+                animate={{ opacity: [1, 0] }}
+                transition={{ duration: 0.5, repeat: Infinity, ease: "steps(2)" }}
+                className="inline-block w-2.5 h-4 bg-white shadow-[0_0_8px_rgba(255,255,255,0.8)] ml-1 align-middle"
+            />
+          </span>
+          <span className="text-white text-shadow-[0_0_8px_rgba(255,255,255,0.8)] w-[4ch] text-right">
+            <motion.span>{rounded}</motion.span>%
+          </span>
+        </div>
       </div>
-    </div>
+    </motion.div>
   );
 };
 
